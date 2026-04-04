@@ -1,115 +1,186 @@
-#define ZMK_POINTING_DEFAULT_MOVE_VAL 1200  // 600
-#define ZMK_POINTING_DEFAULT_SCRL_VAL 25   // 10
+/*
+ * Keymap ZMK pour Eyelash Corne — Ergol (disposition système Linux)
+ *
+ * IMPORTANT : Ce clavier est configuré en QWERTY physique.
+ * La disposition Ergol est gérée par le driver Linux (xkb).
+ * Ne pas programmer les lettres Ergol ici — configurer uniquement
+ * les touches spéciales, modificateurs et couches.
+ *
+ * Couches :
+ *   0 = BASE     → QWERTY (le driver Linux affiche Ergol)
+ *   1 = NAVNUM   → Navigation + Pavé numérique (recommandé Ergol)
+ *   2 = FN       → F1–F12 + touches media
+ *   3 = BT       → Gestion Bluetooth
+ */
 
-#include <input/processors.dtsi>
-#include <zephyr/dt-bindings/input/input-event-codes.h>
 #include <behaviors.dtsi>
-#include <dt-bindings/zmk/bt.h>
 #include <dt-bindings/zmk/keys.h>
+#include <dt-bindings/zmk/bt.h>
 #include <dt-bindings/zmk/outputs.h>
-#include <dt-bindings/zmk/pointing.h>
-#include <dt-bindings/zmk/rgb.h>
 
-&mmv_input_listener { input-processors = <&zip_xy_scaler 2 1>; };
+// ─── Raccourcis lisibilité ────────────────────────────────────────────────────
+#define BASE   0
+#define NAVNUM 1
+#define FN     2
+#define BT_LYR 3
 
-&msc_input_listener { input-processors = <&zip_scroll_scaler 2 1>; };
+// Touches pouce gauche
+#define T_NAV  &mo NAVNUM   // hold → NavNum
+#define T_FN   &mo FN       // hold → Fn
 
-&msc {
-    acceleration-exponent = <1>;      // 0
-    time-to-max-speed-ms = <100>;       // 300
-    delay-ms = <0>;                   // 0
-};
+// Touches pouce droit
+#define T_AGR  &kp RALT     // AltGr — INDISPENSABLE pour les symboles Ergol
+#define T_BT   &mo BT_LYR   // hold → Bluetooth
 
-&mmv {
-    time-to-max-speed-ms = <500>;
-    acceleration-exponent = <1>;
-    trigger-period-ms = <16>;
-};
-
-&soft_off { hold-time-ms = <2000>; };
-
+// ─── Comportements personnalisés ──────────────────────────────────────────────
 / {
     behaviors {
-        td0: td0 {
+        /*
+         * hm = Homerow Mod (optionnel, désactivé par défaut)
+         * Décommenter si vous souhaitez ajouter des homerow mods plus tard.
+         * Pour débuter avec Ergol sur 3×6, ils ne sont pas nécessaires.
+         */
+        // hm: homerow_mods {
+        //     compatible = "zmk,behavior-hold-tap";
+        //     #binding-cells = <2>;
+        //     tapping-term-ms = <200>;
+        //     quick-tap-ms = <0>;
+        //     flavor = "tap-preferred";
+        //     bindings = <&kp>, <&kp>;
+        // };
+
+        /*
+         * Tap-dance : double tap sur Échap → retour layer BASE
+         * Utile si on se retrouve coincé dans une couche
+         */
+        td_esc: tap_dance_esc {
             compatible = "zmk,behavior-tap-dance";
-            display-name = "Shift/Caps Lock Tap Dance";
             #binding-cells = <0>;
-            bindings = <&kp LEFT_SHIFT>, <&kp CAPS>;
+            tapping-term-ms = <200>;
+            bindings = <&kp ESC>, <&to BASE>;
         };
     };
 
-    rgb_encoder: rgb_encoder {
-        compatible = "zmk,behavior-sensor-rotate";
-        #sensor-binding-cells = <0>;
-        bindings = <&rgb_ug RGB_BRI>, <&rgb_ug RGB_BRD>;
-    };
-
-    scroll_encoder: scroll_encoder {
-        compatible = "zmk,behavior-sensor-rotate";
-        #sensor-binding-cells = <0>;
-        bindings = <&msc SCRL_DOWN>, <&msc SCRL_UP>;
-
-        tap-ms = <100>;
-    };
-
-    combos {
-        compatible = "zmk,combos";
-
-        softoff {
-            bindings = <&soft_off>;
-            key-positions = <1 15 29>;
-        };
-    };
-
+    // ─── KEYMAP ───────────────────────────────────────────────────────────────
     keymap {
         compatible = "zmk,keymap";
 
-        default_layer {
-            display-name = "QWERTY";
+        // ── Couche 0 : BASE (QWERTY physique → Ergol via driver Linux) ────────
+        //
+        //  Le driver Linux transforme ces codes QWERTY en Ergol.
+        //  Ex : tu appuies sur Q physique → le PC reçoit Q → Ergol affiche É
+        //
+        //  Disposition physique (ce que ZMK envoie) :
+        //  ┌───┬───┬───┬───┬───┬───┐     ┌───┬───┬───┬───┬───┬───┐
+        //  │TAB│ Q │ W │ E │ R │ T │     │ Y │ U │ I │ O │ P │BSP│
+        //  ├───┼───┼───┼───┼───┼───┤     ├───┼───┼───┼───┼───┼───┤
+        //  │CTL│ A │ S │ D │ F │ G │     │ H │ J │ K │ L │ ; │ ' │
+        //  ├───┼───┼───┼───┼───┼───┤     ├───┼───┼───┼───┼───┼───┤
+        //  │SFT│ Z │ X │ C │ V │ B │     │ N │ M │ , │ . │ / │SFT│
+        //  └───┴───┴───┴───┴───┴───┘     └───┴───┴───┴───┴───┴───┘
+        //                  ┌───┬───┬───┐ ┌───┬───┬───┐
+        //                  │GUI│NAV│SPC│ │ENT│AGR│ BT│
+        //                  └───┴───┴───┘ └───┴───┴───┘
+        //
+        //  Ce que tu tapes en Ergol (grâce au driver Linux) :
+        //  ┌───┬───┬───┬───┬───┬───┐     ┌───┬───┬───┬───┬───┬───┐
+        //  │TAB│ é │ « │ p │ o │ è │     │ v │ d │ l │ j │ z │BSP│
+        //  ├───┼───┼───┼───┼───┼───┤     ├───┼───┼───┼───┼───┼───┤
+        //  │CTL│ a │ u │ i │ e │ , │     │ c │ t │ s │ r │ n │ m │
+        //  ├───┼───┼───┼───┼───┼───┤     ├───┼───┼───┼───┼───┼───┤
+        //  │SFT│ à │ y │ x │ · │ k │     │ ' │ q │ g │ h │ f │SFT│
+        //  └───┴───┴───┴───┴───┴───┘     └───┴───┴───┴───┴───┴───┘
+        //                  ┌───┬───┬───┐ ┌───┬───┬───┐
+        //                  │GUI│NAV│SPC│ │ENT│AGR│ BT│
+        //                  └───┴───┴───┘ └───┴───┴───┘
+        //
+        base_layer {
+            display-name = "BASE";
             bindings = <
-&kp TAB    &kp Q  &kp W  &kp E     &kp R  &kp T                               &kp UP                &kp Y        &kp U  &kp I      &kp O    &kp P     &kp BSPC
-&td0       &kp A  &kp S  &kp D     &kp F  &kp G                     &kp LEFT  &kp ENTER  &kp RIGHT  &kp H        &kp J  &kp K      &kp L    &kp SEMI  &kp SQT
-&kp LCTRL  &kp Z  &kp X  &kp C     &kp V  &kp B        &kp SPACE              &kp DOWN              &kp N        &kp M  &kp COMMA  &kp DOT  &kp FSLH  &kp ESC
-                         &kp LGUI  &mo 1  &lt 3 SPACE                                               &lt 3 ENTER  &mo 2  &kp RALT
+                &kp TAB   &kp Q  &kp W  &kp E  &kp R  &kp T        &kp Y  &kp U  &kp I     &kp O   &kp P    &kp BSPC
+                &kp LCTRL &kp A  &kp S  &kp D  &kp F  &kp G        &kp H  &kp J  &kp K     &kp L   &kp SEMI &kp SQT
+                &kp LSHFT &kp Z  &kp X  &kp C  &kp V  &kp B        &kp N  &kp M  &kp COMMA &kp DOT &kp FSLH &kp RSHFT
+                                 &kp LGUI  T_NAV  &kp SPACE        &kp RET  T_AGR  T_BT
             >;
-
-            sensor-bindings = <&inc_dec_kp C_VOLUME_UP C_VOL_DN>;
         };
 
-        lower_layer {
-            display-name = "NUMBER";
+        // ── Couche 1 : NAVNUM (Navigation + Pavé numérique) ──────────────────
+        //
+        //  Recommandée par Ergol pour 3×6 : une seule couche pour tout.
+        //  Inspirée du schéma NavNum officiel d'Ergol.
+        //
+        //  ┌───┬───┬───┬───┬───┬───┐     ┌───┬───┬───┬───┬───┬───┐
+        //  │ESC│   │   │   │   │   │     │ / │ 7 │ 8 │ 9 │ - │DEL│
+        //  ├───┼───┼───┼───┼───┼───┤     ├───┼───┼───┼───┼───┼───┤
+        //  │CTL│   │HOM│PGD│PGU│END│     │ * │ 4 │ 5 │ 6 │ + │ = │
+        //  ├───┼───┼───┼───┼───┼───┤     ├───┼───┼───┼───┼───┼───┤
+        //  │SFT│   │   │   │   │   │     │ 0 │ 1 │ 2 │ 3 │ . │ENT│
+        //  └───┴───┴───┴───┴───┴───┘     └───┴───┴───┴───┴───┴───┘
+        //                  ┌───┬───┬───┐ ┌───┬───┬───┐
+        //                  │   │[■]│   │ │   │   │FN │
+        //                  └───┴───┴───┘ └───┴───┴───┘
+        //
+        //  Note : les flèches ←↓↑→ sont sur H/J/K/L comme Vim
+        //  (cohérent avec Ergol où c/t/s/r = ←↓↑→ dans la position Vim)
+        //
+        navnum_layer {
+            display-name = "NAVNUM";
             bindings = <
-&trans  &kp N1           &kp N2          &kp N3        &kp N4        &kp N5                                         &mmv MOVE_UP                     &kp N6           &kp N7           &kp N8           &kp N9           &kp N0    &kp BSPC
-&trans  &bt BT_CLR_ALL   &bt BT_SEL 0    &bt BT_SEL 1  &bt BT_SEL 2  &bt BT_SEL 3                   &mmv MOVE_LEFT  &mkp LCLK       &mmv MOVE_RIGHT  &kp LEFT         &kp DOWN         &kp UP           &kp RIGHT        &kp HOME  &kp PG_UP
-&trans  &rgb_ug RGB_OFF  &rgb_ug RGB_ON  &trans        &trans        &rgb_ug RGB_EFF  &kp C_MUTE                    &mmv MOVE_DOWN                   &rgb_ug RGB_EFR  &rgb_ug RGB_SPI  &rgb_ug RGB_BRI  &rgb_ug RGB_BRD  &kp END   &kp PG_DN
-                                         &trans        &trans        &trans                                                                          &kp INS          &kp DEL          &trans
+                &td_esc  &none    &none    &none    &none    &none        &kp KP_SLASH    &kp N7  &kp N8  &kp N9  &kp MINUS  &kp DEL
+                &kp LCTRL &none   &kp HOME &kp PG_DN &kp PG_UP &kp END  &kp KP_ASTERISK &kp N4  &kp N5  &kp N6  &kp PLUS   &kp EQUAL
+                &kp LSHFT &none   &kp LEFT &kp DOWN  &kp UP   &kp RIGHT  &kp N0          &kp N1  &kp N2  &kp N3  &kp DOT    &kp RET
+                                  &kp LGUI  &trans  &kp SPACE            &kp RET         &trans  &mo FN
             >;
-
-            sensor-bindings = <&scroll_encoder>;
         };
 
-        raise_layer {
-            display-name = "SYMBOL";
+        // ── Couche 2 : FN (Touches de fonction + Media) ───────────────────────
+        //
+        //  ┌───┬───┬───┬───┬───┬───┐     ┌───┬───┬───┬───┬───┬───┐
+        //  │   │F1 │F2 │F3 │F4 │F5 │     │F6 │F7 │F8 │F9 │F10│   │
+        //  ├───┼───┼───┼───┼───┼───┤     ├───┼───┼───┼───┼───┼───┤
+        //  │   │   │MUT│VOL│VOL│   │     │   │   │   │F11│F12│   │
+        //  │   │   │   │ - │ + │   │     │   │   │   │   │   │   │
+        //  ├───┼───┼───┼───┼───┼───┤     ├───┼───┼───┼───┼───┼───┤
+        //  │   │   │PRV│PLY│NXT│   │     │   │   │   │   │PSC│   │
+        //  └───┴───┴───┴───┴───┴───┘     └───┴───┴───┴───┴───┴───┘
+        //                  ┌───┬───┬───┐ ┌───┬───┬───┐
+        //                  │   │   │   │ │   │   │[■]│
+        //                  └───┴───┴───┘ └───┴───┴───┘
+        fn_layer {
+            display-name = "FN";
             bindings = <
-&trans  &kp EXCL      &kp AT        &kp HASH   &kp DLLR   &kp PRCNT                            &mmv MOVE_UP                     &kp CARET  &kp AMPS   &kp ASTRK  &kp LPAR  &kp RPAR  &kp BSPC
-&trans  &bt BT_CLR    &mkp LCLK     &mkp MCLK  &mkp RCLK  &mkp MB4             &mmv MOVE_LEFT  &mkp LCLK       &mmv MOVE_RIGHT  &kp MINUS  &kp EQUAL  &kp LBKT   &kp RBKT  &kp BSLH  &kp GRAVE
-&trans  &out OUT_USB  &out OUT_BLE  &none      &none      &mkp MB5   &trans                    &mmv MOVE_DOWN                   &kp UNDER  &kp PLUS   &kp LBRC   &kp RBRC  &kp PIPE  &kp TILDE
-                                    &trans     &trans     &kp SPACE                                                             &kp RET    &trans     &trans
+                &none  &kp F1  &kp F2       &kp F3       &kp F4       &kp F5        &kp F6  &kp F7  &kp F8  &kp F9  &kp F10  &none
+                &none  &none   &kp C_MUTE   &kp C_VOL_DN &kp C_VOL_UP &none         &none   &none   &none   &kp F11 &kp F12  &none
+                &none  &none   &kp C_PREV   &kp C_PP     &kp C_NEXT   &none         &none   &none   &none   &none   &kp PSCRN &none
+                               &none  &none  &none                                   &none   &none   &trans
             >;
-
-            sensor-bindings = <&scroll_encoder>;
         };
 
-        layer_3 {
-            display-name = "Fn";
+        // ── Couche 3 : BT (Bluetooth) ─────────────────────────────────────────
+        //
+        //  ┌───┬───┬───┬───┬───┬───┐     ┌───┬───┬───┬───┬───┬───┐
+        //  │   │BT0│BT1│BT2│BT3│BT4│     │   │   │   │   │   │   │
+        //  ├───┼───┼───┼───┼───┼───┤     ├───┼───┼───┼───┼───┼───┤
+        //  │   │   │   │   │   │   │     │   │   │   │   │   │   │
+        //  ├───┼───┼───┼───┼───┼───┤     ├───┼───┼───┼───┼───┼───┤
+        //  │   │CLR│   │   │   │   │     │   │   │   │   │   │   │
+        //  └───┴───┴───┴───┴───┴───┘     └───┴───┴───┴───┴───┴───┘
+        //                  ┌───┬───┬───┐ ┌───┬───┬───┐
+        //                  │USB│   │BLE│ │   │   │[■]│
+        //                  └───┴───┴───┘ └───┴───┴───┘
+        //
+        //  BT0–BT4 : sélectionner un des 5 profils Bluetooth
+        //  CLR     : effacer le profil Bluetooth actuel (en cas de bug)
+        //  USB/BLE : forcer la sortie USB ou Bluetooth
+        //
+        bt_layer {
+            display-name = "BT";
             bindings = <
-&studio_unlock  &kp F1      &kp F2     &kp F3       &kp F4     &kp F5                                  &mmv MOVE_UP                     &kp F6       &kp F7     &kp F8       &kp F9      &kp F10          &kp F11
-&trans          &trans      &mkp LCLK  &mkp MCLK    &mkp RCLK  &mkp MB4                &mmv MOVE_LEFT  &mkp LCLK       &mmv MOVE_RIGHT  &bootloader  &mkp LCLK  &mkp MCLK    &mkp RCLK   &kp PRINTSCREEN  &kp F12
-&trans          &sys_reset  &trans     &bootloader  &trans     &mkp MB5  &kp C_MUTE                    &mmv MOVE_DOWN                   &trans       &trans     &bootloader  &sys_reset  &kp SCROLLLOCK   &kp PAUSE_BREAK
-                                       &trans       &trans     &trans                                                                   &trans       &trans     &trans
+                &none  &bt BT_SEL 0  &bt BT_SEL 1  &bt BT_SEL 2  &bt BT_SEL 3  &bt BT_SEL 4    &none  &none  &none  &none  &none  &none
+                &none  &none         &none         &none         &none         &none             &none  &none  &none  &none  &none  &none
+                &none  &bt BT_CLR    &none         &none         &none         &none             &none  &none  &none  &none  &none  &none
+                                     &out OUT_USB  &none  &out OUT_BLE                          &none  &none  &trans
             >;
-
-            sensor-bindings = <&scroll_encoder>;
         };
     };
 };
