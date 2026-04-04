@@ -1,33 +1,27 @@
 /*
- * Keymap ZMK — Eyelash Corne avec Ergol (disposition système Linux)
+ * Eyelash Corne — Ergol ZMK keymap
+ * =================================
  *
- * Le clavier envoie du QWERTY physique standard.
- * Le driver Linux (xkb + Ergol) se charge de la traduction.
+ * PRINCIPE : Ergol est installé côté OS (setxkbmap fr -variant ergol).
+ * Le firmware ZMK envoie des scancodes QWERTY standards.
+ * L'OS traduit ensuite les positions physiques en lettres Ergol.
  *
- * Structure physique réelle de l'Eyelash Corne :
- * - 42 touches alpha (3×6 par côté)
- * - Joystick 5 directions intégré dans la matrix côté DROIT
- *   (↑ / ← Enter → / ↓) entre les deux moitiés dans la grille
- * - Encodeur rotatif côté GAUCHE (sensor-bindings)
+ * MATRICE EYELASH CORNE (48 positions) — PAS un Corne standard !
+ *   Rangée 0 : 6 gauche + [joy↑]                       + 6 droite = 13
+ *   Rangée 1 : 6 gauche + [joy←] + [joy●] + [joy→]     + 6 droite = 15
+ *   Rangée 2 : 6 gauche + [enc btn]       + [joy↓]     + 6 droite = 14
+ *   Rangée 3 : 3 pouces gauche            + 3 pouces droite       =  6
+ *   Total = 48
  *
- * Layout matrix complet (d'après keymap original) :
+ * POUCES (recommandation Ergol 3×6) :
+ *   Gauche ext→int : [Ctrl] [Shift] [NavNum/Space]
+ *   Droite int→ext : [NavNum/Enter] [AltGr] [Bksp]
  *
- *  Gauche (col 0-5)        Joystick        Droite (col 6-11)
- *  ┌───┬───┬───┬───┬───┬───┐               ┌───┬───┬───┬───┬───┬───┐
- *  │   │   │   │   │   │   │    [↑]        │   │   │   │   │   │   │
- *  ├───┼───┼───┼───┼───┼───┤  [←][↵][→]   ├───┼───┼───┼───┼───┼───┤
- *  │   │   │   │   │   │   │    [↓]        │   │   │   │   │   │   │
- *  ├───┼───┼───┼───┼───┼───┤               ├───┼───┼───┼───┼───┼───┤
- *  │   │   │   │   │   │   │ [SPC]         │   │   │   │   │   │   │
- *  └───┴───┴───┴┬──┴──┬┴──┬┘               └┬──┴──┬┴───┴───┴───┴───┘
- *               │GUI  │mo1│ lt3:SPC  lt3:ENT│mo2  │RALT
- *               └─────┘                     └─────┘
- *
- * Couches :
- *   0 = BASE    → QWERTY physique (Ergol via driver Linux)
- *   1 = NAVNUM  → Navigation + pavé numérique
- *   2 = SYMBOL  → Symboles (comme l'original raise_layer)
- *   3 = FN      → F1-F12 + media + BT
+ * LAYERS :
+ *   0 = BASE   : QWERTY (traduit en Ergol par le driver Linux)
+ *   1 = NAVNUM : Navigation (gauche) + Pavé numérique (droite)
+ *   2 = FN     : F1-F12, media, PrintScreen
+ *   3 = SYS    : Bluetooth, RGB, bootloader, reset
  */
 
 #define ZMK_POINTING_DEFAULT_MOVE_VAL 1200
@@ -42,7 +36,11 @@
 #include <dt-bindings/zmk/pointing.h>
 #include <dt-bindings/zmk/rgb.h>
 
-// ─── Tuning pointeur/scroll (identique à l'original) ─────────────────────────
+#define BASE   0
+#define NAVNUM 1
+#define FN     2
+#define SYS    3
+
 &mmv_input_listener { input-processors = <&zip_xy_scaler 2 1>; };
 &msc_input_listener { input-processors = <&zip_scroll_scaler 2 1>; };
 
@@ -58,29 +56,18 @@
     trigger-period-ms = <16>;
 };
 
-// Deep sleep : Q + S + Z maintenus 2s (positions 1, 15, 29)
 &soft_off { hold-time-ms = <2000>; };
 
 / {
     behaviors {
-        // Tap = Shift | Double-tap = Caps Lock
-        td0: td0 {
+        td_shift: td_shift {
             compatible = "zmk,behavior-tap-dance";
             display-name = "Shift/Caps Lock";
             #binding-cells = <0>;
             bindings = <&kp LEFT_SHIFT>, <&kp CAPS>;
         };
-
-        // Double tap Échap → retour couche BASE
-        td_esc: td_esc {
-            compatible = "zmk,behavior-tap-dance";
-            #binding-cells = <0>;
-            tapping-term-ms = <200>;
-            bindings = <&kp ESC>, <&to 0>;
-        };
     };
 
-    // Encodeur : scroll vertical (utilisé dans NAVNUM/SYMBOL/FN)
     scroll_encoder: scroll_encoder {
         compatible = "zmk,behavior-sensor-rotate";
         #sensor-binding-cells = <0>;
@@ -88,9 +75,10 @@
         tap-ms = <100>;
     };
 
-    // Combo deep sleep (identique à l'original)
     combos {
         compatible = "zmk,combos";
+
+        /* Soft off : positions 1 + 15 + 29 = Q + S + Z maintenus 2s */
         softoff {
             bindings = <&soft_off>;
             key-positions = <1 15 29>;
@@ -100,93 +88,107 @@
     keymap {
         compatible = "zmk,keymap";
 
-        // ── Couche 0 : BASE ───────────────────────────────────────────────────
-        //
-        //  QWERTY physique envoyé → driver Linux Ergol → caractères Ergol
-        //
-        //  Gauche                          Joystick          Droite
-        //  ┌────┬───┬───┬───┬───┬───┐                  ┌───┬───┬───┬───┬───┬────┐
-        //  │TAB │ Q │ W │ E │ R │ T │      [↑]         │ Y │ U │ I │ O │ P │BSP │
-        //  ├────┼───┼───┼───┼───┼───┤   [←][↵][→]     ├───┼───┼───┼───┼───┼────┤
-        //  │SFT │ A │ S │ D │ F │ G │      [↓]         │ H │ J │ K │ L │ ; │ '  │
-        //  ├────┼───┼───┼───┼───┼───┤   [SPC]          ├───┼───┼───┼───┼───┼────┤
-        //  │CTL │ Z │ X │ C │ V │ B │                  │ N │ M │ , │ . │ / │ESC │
-        //  └────┴───┴───┴┬──┴┬──┴┬──┘                  └┬──┴┬──┴───┴───┴───┴────┘
-        //                │GUI│NAV│ lt3:SPC   lt3:ENT    │SYM│AGR
-        //                └───┘                          └───┘
-        //  [ENC: Vol↑ / Vol↓]
-        //
-        //  En Ergol (via driver Linux), la home row devient : a u i e , | c t s r n m
-        //
-        default_layer {
-            display-name = "BASE";
+        /* ==================================================================
+         * LAYER 0 — BASE
+         * ==================================================================
+         *
+         * Scancodes QWERTY envoyés → traduits par le driver Linux Ergol :
+         *
+         *  Physique (QWERTY) :
+         *  TAB  Q  W  E  R  T     [joy]     Y  U  I  O  P  BSPC
+         *  ESC  A  S  D  F  G   [←][●][→]   H  J  K  L  ;  '
+         *  CTRL Z  X  C  V  B [enc] [↓]     N  M  ,  .  /  DEL
+         *           CTRL SHFT NAV/SPC    NAV/ENT AGR BSPC
+         *
+         *  Affiché par Ergol :
+         *  TAB  Q  C  O  P  W               J  M  D  !  Y  BSPC
+         *  ESC  A  S  E  N  F               L  R  T  I  U  ★(1dk)
+         *  CTRL Z  X  ?  V  B               :  H  G  ;  K  DEL
+         *           CTRL SHFT NAV/SPC    NAV/ENT AGR BSPC
+         *
+         * Positions dans la matrice (48 au total) :
+         *  0    1   2   3   4   5       6(joy↑)      7   8   9  10  11  12
+         * 13   14  15  16  17  18  19(j←) 20(j●) 21(j→) 22  23  24  25  26  27
+         * 28   29  30  31  32  33  34(enc) 35(j↓)     36  37  38  39  40  41
+         *                  42  43  44                45  46  47
+         */
+        base_layer {
+            display-name = "ERGOL";
             bindings = <
-&kp TAB    &kp Q  &kp W  &kp E     &kp R  &kp T                                   &kp UP                   &kp Y        &kp U  &kp I      &kp O    &kp P     &kp BSPC
-&td0       &kp A  &kp S  &kp D     &kp F  &kp G                       &kp LEFT    &kp ENTER  &kp RIGHT      &kp H        &kp J  &kp K      &kp L    &kp SEMI  &kp SQT
-&kp LCTRL  &kp Z  &kp X  &kp C     &kp V  &kp B        &kp SPACE                  &kp DOWN                  &kp N        &kp M  &kp COMMA  &kp DOT  &kp FSLH  &kp ESC
-                          &kp LGUI  &mo 1  &lt 3 SPACE                                                       &lt 3 ENTER  &mo 2  &kp RALT
+&kp TAB    &kp Q  &kp W  &kp E      &kp R      &kp T                                      &kp UP                  &kp Y           &kp U     &kp I      &kp O    &kp P     &kp BSPC
+&kp ESC    &kp A  &kp S  &kp D      &kp F      &kp G                            &kp LEFT   &kp ENTER  &kp RIGHT    &kp H           &kp J     &kp K      &kp L    &kp SEMI  &kp SQT
+&kp LCTRL  &kp Z  &kp X  &kp C      &kp V      &kp B          &kp C_MUTE                   &kp DOWN                &kp N           &kp M     &kp COMMA  &kp DOT  &kp FSLH  &kp DEL
+                          &kp LCTRL  &td_shift  &lt NAVNUM SPACE                                                    &lt NAVNUM RET  &kp RALT  &kp BSPC
             >;
 
-            // Encodeur gauche : volume
             sensor-bindings = <&inc_dec_kp C_VOLUME_UP C_VOL_DN>;
         };
 
-        // ── Couche 1 : NAVNUM ─────────────────────────────────────────────────
-        //
-        //  Navigation (style Vim sur HJKL) + pavé numérique à droite
-        //  Bluetooth sur la rangée gauche du haut
-        //
-        //  ┌────┬───┬───┬───┬───┬───┐                  ┌───┬───┬───┬───┬───┬────┐
-        //  │    │ 1 │ 2 │ 3 │ 4 │ 5 │      [↑]         │ 6 │ 7 │ 8 │ 9 │ 0 │BSP │
-        //  ├────┼───┼───┼───┼───┼───┤   [←][↵][→]     ├───┼───┼───┼───┼───┼────┤
-        //  │    │BT0│BT1│BT2│BT3│BT4│      [↓]         │ ← │ ↓ │ ↑ │ → │HOM│PGU │
-        //  ├────┼───┼───┼───┼───┼───┤   [MUT]          ├───┼───┼───┼───┼───┼────┤
-        //  │    │CLR│   │   │   │   │                  │   │   │   │   │END│PGD │
-        //  └────┴───┴───┴┬──┴┬──┴┬──┘                  └┬──┴┬──┴───┴───┴───┴────┘
-        //                │   │[■]│             INS      │DEL│
-        //                └───┘                          └───┘
-        //  [ENC: scroll]
-        //
-        lower_layer {
+        /* ==================================================================
+         * LAYER 1 — NAVNUM
+         * ==================================================================
+         *
+         * Activé par les pouces intérieurs (layer-tap NavNum/Space et NavNum/Enter)
+         *
+         * Main gauche : Navigation
+         * Main droite : Pavé numérique
+         *
+         *  ___  Esc Home  ↑  End PgUp  [mouse↑]    /   7  8  9  +  ___
+         *  ___  Tab  ←   ↓   →  PgDn [m←][clk][m→] *   4  5  6  -  =
+         *  ___  ___  ___ ___ ___ Ins  [mute] [m↓]   0   1  2  3  .  Ent
+         *                ___  ___ [■]             [■] Fn  ___
+         */
+        navnum_layer {
             display-name = "NAVNUM";
             bindings = <
-&trans  &kp N1        &kp N2       &kp N3       &kp N4       &kp N5                                           &mmv MOVE_UP                     &kp N6    &kp N7    &kp N8  &kp N9     &kp N0    &kp BSPC
-&trans  &bt BT_SEL 0  &bt BT_SEL 1 &bt BT_SEL 2 &bt BT_SEL 3 &bt BT_SEL 4             &mmv MOVE_LEFT  &mkp LCLK  &mmv MOVE_RIGHT  &kp LEFT  &kp DOWN  &kp UP  &kp RIGHT  &kp HOME  &kp PG_UP
-&trans  &bt BT_CLR    &none        &none        &none        &none        &kp C_MUTE                    &mmv MOVE_DOWN                   &none     &none     &none   &none      &kp END   &kp PG_DN
-                                   &trans       &trans       &trans                                                                    &kp INS   &kp DEL   &trans
+&trans  &kp ESC  &kp HOME  &kp UP    &kp END    &kp PG_UP                                      &mmv MOVE_UP                     &kp KP_SLASH     &kp N7  &kp N8  &kp N9  &kp PLUS   &trans
+&trans  &kp TAB  &kp LEFT  &kp DOWN  &kp RIGHT  &kp PG_DN                       &mmv MOVE_LEFT  &mkp LCLK       &mmv MOVE_RIGHT  &kp KP_ASTERISK  &kp N4  &kp N5  &kp N6  &kp MINUS  &kp EQUAL
+&trans  &none    &none     &none     &none      &kp INS      &kp C_MUTE                         &mmv MOVE_DOWN                   &kp N0           &kp N1  &kp N2  &kp N3  &kp DOT    &kp RET
+                            &trans   &trans     &trans                                                                            &trans           &mo FN  &trans
             >;
 
             sensor-bindings = <&scroll_encoder>;
         };
 
-        // ── Couche 2 : SYMBOL ────────────────────────────────────────────────
-        //
-        //  Symboles — cohérent avec l'original raise_layer
-        //  Utile si besoin de symboles hors Ergol (jeux, apps spécifiques)
-        //
-        raise_layer {
-            display-name = "SYMBOL";
-            bindings = <
-&trans  &kp EXCL      &kp AT        &kp HASH   &kp DLLR   &kp PRCNT                               &mmv MOVE_UP                     &kp CARET  &kp AMPS   &kp ASTRK  &kp LPAR  &kp RPAR  &kp BSPC
-&trans  &bt BT_CLR    &mkp LCLK     &mkp MCLK  &mkp RCLK  &mkp MB4                &mmv MOVE_LEFT  &mkp LCLK       &mmv MOVE_RIGHT  &kp MINUS  &kp EQUAL  &kp LBKT   &kp RBKT  &kp BSLH  &kp GRAVE
-&trans  &out OUT_USB  &out OUT_BLE  &none      &none      &mkp MB5   &trans                       &mmv MOVE_DOWN                   &kp UNDER  &kp PLUS   &kp LBRC   &kp RBRC  &kp PIPE  &kp TILDE
-                                    &trans     &trans     &kp SPACE                                                                &kp RET    &trans     &trans
-            >;
-
-            sensor-bindings = <&scroll_encoder>;
-        };
-
-        // ── Couche 3 : FN ────────────────────────────────────────────────────
-        //
-        //  F1-F12 + touches système + ZMK Studio unlock
-        //
-        layer_3 {
+        /* ==================================================================
+         * LAYER 2 — FN
+         * ==================================================================
+         *
+         * Accessible depuis NAVNUM + pouce droit milieu
+         *
+         *  ___ F1   F2   F3   F4   F5   [mouse]     F6   F7   F8   F9  F10  F11
+         *  ___ Mute Vol- Vol+ ___ ___  [m←][clk][m→] ___ ___ ___ ___ PrSc F12
+         *  ___ ___  Prev Play Next ___  [mute] [m↓]  ___ Bri+ Bri- ___ ___ ___
+         *                ___  ___  ___              ___  [■]  ___
+         */
+        fn_layer {
             display-name = "FN";
             bindings = <
-&studio_unlock  &kp F1      &kp F2     &kp F3       &kp F4     &kp F5                                    &mmv MOVE_UP                     &kp F6       &kp F7     &kp F8       &kp F9      &kp F10          &kp F11
-&trans          &trans      &mkp LCLK  &mkp MCLK    &mkp RCLK  &mkp MB4                  &mmv MOVE_LEFT  &mkp LCLK       &mmv MOVE_RIGHT  &bootloader  &mkp LCLK  &mkp MCLK    &mkp RCLK   &kp PRINTSCREEN  &kp F12
-&trans          &sys_reset  &trans     &bootloader  &trans     &mkp MB5  &kp C_MUTE                      &mmv MOVE_DOWN                   &trans       &trans     &bootloader  &sys_reset  &kp SCROLLLOCK   &kp PAUSE_BREAK
-                                       &trans       &trans     &trans                                                                     &trans       &trans     &trans
+&none  &kp F1     &kp F2       &kp F3        &kp F4       &kp F5                                         &mmv MOVE_UP                     &kp F6  &kp F7        &kp F8        &kp F9  &kp F10          &kp F11
+&none  &kp C_MUTE &kp C_VOL_DN &kp C_VOL_UP  &none        &none                           &mmv MOVE_LEFT &mkp LCLK       &mmv MOVE_RIGHT  &none   &none         &none         &none   &kp PRINTSCREEN  &kp F12
+&none  &none      &kp C_PREV   &kp C_PP      &kp C_NEXT   &none         &kp C_MUTE                       &mmv MOVE_DOWN                   &none   &kp C_BRI_UP  &kp C_BRI_DN  &none   &none            &none
+                                &none         &none        &none                                                                            &none   &trans        &none
+            >;
+
+            sensor-bindings = <&inc_dec_kp C_BRI_UP C_BRI_DN>;
+        };
+
+        /* ==================================================================
+         * LAYER 3 — SYS (Bluetooth, RGB, Reset)
+         * ==================================================================
+         *
+         *  studio BT0  BT1  BT2  BT3  BT4                 ___  ___  ___  ___  ___  ___
+         *  ___    ___  ___  ___  ___  ___                  boot ___  ___  ___  ___  ___
+         *  ___    CLR  USB  BLE  ___  ___                  ___  ___  boot rst  ___  ___
+         *                   ___  ___  ___                  ___  ___  ___
+         */
+        sys_layer {
+            display-name = "SYS";
+            bindings = <
+&studio_unlock  &bt BT_SEL 0    &bt BT_SEL 1  &bt BT_SEL 2  &bt BT_SEL 3  &bt BT_SEL 4                          &none                  &none        &none  &none        &none       &none  &none
+&none           &none           &none         &none         &none         &none                         &none     &none      &none       &bootloader  &none  &none        &none       &none  &none
+&none           &bt BT_CLR_ALL  &out OUT_USB  &out OUT_BLE  &none         &none           &none                   &none                  &none        &none  &bootloader  &sys_reset  &none  &none
+                                              &none         &none         &none                                                          &none        &none  &none
             >;
 
             sensor-bindings = <&scroll_encoder>;
